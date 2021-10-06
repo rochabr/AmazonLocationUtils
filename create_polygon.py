@@ -1,3 +1,13 @@
+import json
+import boto3
+import math
+
+def create_geofence(longitude, latitude):    
+    coordinates = create_polygon(longitude, latitude)
+    location_coordinates.append(create_coordinate_structure(coordinates, identifier))        
+
+    batch_put_geofence(location_coordinates)
+        
 def create_polygon(longitude, latitude):
     center = (longitude,latitude)
     radius = 0.0008
@@ -11,3 +21,29 @@ def create_polygon(longitude, latitude):
     coord_list.append(coord_list[0])
     
     return coord_list
+    
+
+def create_coordinate_structure(coordinates, identifier):
+    coordinates.reverse()
+    return {
+	    'GeofenceId': identifier,
+		'Geometry': {
+		'Polygon': [coordinates]
+		}
+	}
+	
+
+    
+def batch_put_geofence(geofences):
+    location = boto3.client('location')
+    geofence_collection = 'COLLECTION_NAME' 
+    
+    response = location.batch_put_geofence(
+				CollectionName=geofence_collection,
+				Entries=geofences)
+	
+    print(response)
+    
+    
+
+
