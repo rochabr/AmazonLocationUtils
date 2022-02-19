@@ -69,9 +69,9 @@ def create_coordinate_structure(coordinates, identifier):
 	}
 
 #creates geofence on amazon location
-def batch_put_geofence(geofences, collection_name):
+def batch_put_geofence(geojson_file, collection_name):
     #reads geofences from file
-    geofences_from_file = read_geofence_file('sample.json')
+    geofences_from_file = read_geofence_file(geojson_file)
 
     #creates geofence confirming to Amazon Location's structure
     geofences = create_geofences(geofences_from_file)
