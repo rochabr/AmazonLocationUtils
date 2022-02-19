@@ -2,29 +2,58 @@ import json
 import boto3
 import math
 
-def create_geofence(longitude, latitude, radius, identifier):  
-    geofence = []
-
-    #creates inverted polygon
-    coordinates = create_polygon(longitude, latitude, radius)
-    geofence.append(create_coordinate_structure(coordinates, identifier))     
-
-    return geofence
+#reads the geojson file and returns all geofences
+def read_geofence_file(file):
+    geofences_array = []
     
-#creates polygon
-def create_polygon(longitude, latitude, radius, vertices=20):
-    center = (longitude,latitude)
-
-    # converts the radius to its approximate in meters (~10% off)
-    radius = radius / 100000.00
-
-    angle = 0
-    angle -= (math.pi/vertices)
+    try:
+        # Opening JSON file
+        f = open(file)
+         
+        # returns JSON object as
+        # a dictionary
+        data = json.load(f)
+         
+        # Iterating through the json
+        # list of polygon features
+        if not 'features' in data:
+            return []
+        print(11)
+        features = data['features']
+        
+        for feature in features:
+            if 'geometry' in feature and 'type' in feature['geometry']:
+                geometry = feature['geometry']
+                type = geometry['type']
+                
+                if type == 'Polygon':
+                    geofences_array.append(geometry['coordinates'])  
+                
+        # Closing file
+        f.close()
+        
+        return geofences_array
+    except IOError:
+        print ("Could not open file")
+        return []
     
-    coord_list = [[center[0] + radius * math.sin((2*math.pi/vertices) * i - angle), center[1] + radius * math.cos((2*math.pi/vertices) * i - angle)] for i in range(vertices)]
-    coord_list.append(coord_list[0])
+def create_geofences(geofences_from_file):  
+    geofences = []
     
-    return coord_list
+    count = 0
+    for coordinates in geofences_from_file:
+        count+=1
+        
+        identifier = 'Geofence-' + str(count)
+        
+        #creates inverted polygon with identifier
+        structure = create_coordinate_structure(coordinates, identifier)
+        
+        print(structure)
+        
+        geofences.append(structure)
+
+    return geofences
     
 #formats amazon location geofence
 def create_coordinate_structure(coordinates, identifier):
@@ -33,20 +62,24 @@ def create_coordinate_structure(coordinates, identifier):
     return {
 	    'GeofenceId': identifier,
 		'Geometry': {
-		'Polygon': [coordinates]
+		'Polygon': coordinates
 		}
 	}
 
 #creates geofence on amazon location
-def batch_put_geofence(longitude, latitude, radius, collection_name, geofence_identifier):
+def batch_put_geofence(geojson_file, collection_name):
+    #reads geofences from file
+    geofences_from_file = read_geofence_file(geojson_file)
+
+    #creates geofence confirming to Amazon Location's structure
+    geofences = create_geofences(geofences_from_file)
+    
     location = boto3.client('location')
 
-    # Creates the geofence with the center point, radius, and identifier
-    geofence = create_geofence(longitude, latitude, radius, geofence_identifier)
-    
+    # batch put geofences to collection
     response = location.batch_put_geofence(
 				CollectionName=collection_name,
-				Entries=geofence)
+				Entries=geofences)
 				
     return(response)
 
